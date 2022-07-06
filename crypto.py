@@ -1,8 +1,6 @@
-import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMenuBar, QFileDialog
 import sys
-import time
 
 class MainWindow(QMainWindow):
     def __init__(self):
