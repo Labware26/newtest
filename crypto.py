@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
         if action.text() == "Открыть":
             fname = QFileDialog.getOpenFileName(self, "Сохранение текстового файла", "", "Text Files (*.txt);;All files()")[0] # ;;выбор фильтра
             try:
-                with open(fname, "r") as f:
+                with open(fname, "r", encoding="utf-8") as f:
                     date1 = f.read()
                     self.plane1.setPlainText(date1)
             except FileNotFoundError:
