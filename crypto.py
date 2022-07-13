@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         elif action.text() == "Сохранить":
             fname = QFileDialog.getSaveFileName(self, "Сохранение текстового файла", "", "Text Files (*.txt)")[0] #Заголовок, директория, фильтр
             try:
-                with open(fname, "w") as f:
+                with open(fname, "w", encoding="utf-8") as f:
                     date2 = self.plane2.toPlainText()
                     f.write(date2)
             except FileNotFoundError:
