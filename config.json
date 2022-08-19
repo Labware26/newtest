@@ -1,0 +1,11 @@
+{
+    "url_server_jira": "http://192.168.100.230:8080/",
+    "login": "",
+    "password": "",
+    "launch_mode": "noprint",
+    "date_start": "",
+    "date_end": "",
+    "timeout_hide": 10000,
+    "point_size": 11,
+    "bold": false
+}
