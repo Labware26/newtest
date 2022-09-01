@@ -4,95 +4,9 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QWidget, QSy
 from PyQt5.QtCore import QTimer, QSize, Qt
 from PyQt5.QtGui import QFont, QColor
 from jira import JIRA
-import datetime
 from re import search
 import sys
-import json
-
-
-class FileIsNotCorrectError(Exception):
-    def __init__(self, *arg):
-        pass
-
-
-class Configuration:
-    def __init__(self):
-        default_configuration = {'url_server_jira': 'http://192.168.100.230:8080/', 'login': '', 'password': '',
-                                 'launch_mode': 'noprint', 'date_start': '', 'date_end': '', 'timeout_hide': 10000,
-                                 'point_size': 11, 'bold': False}
-        try:
-            with open('config.json', 'r', encoding='utf-8') as f_conf:
-                self.configuration = json.load(f_conf)
-                print('Считан файл конфигурации ' + f_conf.name)
-            if self.configuration.keys() != default_configuration.keys():
-                raise FileIsNotCorrectError('Содержимое файла ' + f_conf.name + ' не корректно')
-        except (FileNotFoundError, FileIsNotCorrectError) as log:
-            print(log)
-            self.configuration = default_configuration
-            print('Создана новая конфигурация!', self.configuration)
-            self.save_configuration()
-
-    def get_configuration(self):
-        return self.configuration
-
-    def get_url_server_jira(self):
-        return self.configuration['url_server_jira']
-
-    def get_login(self):
-        return self.configuration['login']
-
-    def get_password(self):
-        return self.configuration['password']
-
-    def get_timeout_hide(self):
-        return self.configuration['timeout_hide']
-
-    def get_point_size(self):
-        return self.configuration['point_size']
-
-    def get_bold(self):
-        return self.configuration['bold']
-
-    def get_launch_mode(self):
-        return self.configuration['launch_mode']
-
-    def get_configuration_tuple(self):
-        return tuple(self.configuration.values())
-
-    def get_date(self):
-        return self.configuration['date_start'], self.configuration['date_end']
-
-    def set_url_server_jira(self, url_server_jira):
-        self.configuration['url_server_jira'] = url_server_jira
-        self.save_configuration()
-
-    def set_login(self, login):
-        self.configuration['login'] = login
-        self.save_configuration()
-
-    def set_password(self, password):
-        self.configuration['password'] = password
-        self.save_configuration()
-
-    def set_launch_mode(self, launch_mode):
-        self.configuration['launch_mode'] = launch_mode
-        self.save_configuration()
-
-    def set_url_login_password(self, url_server_jira, login, password):
-        self.configuration['url_server_jira'] = url_server_jira
-        self.configuration['login'] = login
-        self.configuration['password'] = password
-        self.save_configuration()
-
-    def save_configuration(self):
-        try:
-            with open('config.json', 'w', encoding='utf-8') as f_conf:
-                json.dump(self.configuration, f_conf, indent=4, ensure_ascii=False)
-                print('Конфигурация успешно сохранена')
-            return True
-        except FileNotFoundError:
-            print('Ошибка открытия файла ' + f_conf.name + 'для записи')
-            return False
+from jira_estimate_lib.lib import *
 
 
 class ConnectToJIRA:
@@ -120,38 +34,30 @@ class ConnectToJIRA:
     def isConnect(self):
         return self.isCon
 
-
-class RequestTime:  # Время запроса
-    @staticmethod
-    def time():
-        date_now = datetime.datetime.now().date()
-        # Получаем номер месяца в фомате - 07 и номер года в формате - 2022
-        month_now = date_now.strftime("%m")
-        year_now = str(date_now.year)
-        the_beginning_of_the_month = year_now + '-' + month_now + '-01'
-        return the_beginning_of_the_month, str(date_now)
-
-
+# issue.fields.customfield_10108[0].fields.summary
 class DictPersons:
-    def __init__(self, connect_to_jira, date):
+    def __init__(self, connect_to_jira, conf):
+        self.config = conf
+        self.dict_persons = dict()
         jira = connect_to_jira.getConnectToJira()
         self.issue_error = 'Не оцененные задачи: '
         self.dict_persons = dict()
         with open('person_list.ini', 'r', encoding='utf-8') as f_n:
             person_file = f_n.read().split()
-        self.request_date = date
-        if date[0] == '' or date[1] == '':
-            self.request_date = RequestTime.time()  #Получаем даты для выгрузки
+        self.request_date = conf.get_date()
+        if conf.get_date()[0] == '' or conf.get_date()[1] == '':
+            self.request_date = request_time()  #Получаем даты текущего месяца для выгрузки
         self.key = str()
         for name in person_file:
             jql_all = 'cf[10110] >= "' + self.request_date[0] + ' 06:00" AND cf[10110] <= "' + self.request_date[1] + ' 22:00" AND assignee in (' + name + ')'
-            jql_krt = 'status in (Closed, Протестированный) AND "Дата проверки" >= "' + self.request_date[0] + ' 06:00" AND "Дата проверки" <= "' + self.request_date[1] + ' 22:00" AND "Испытатель/тестировщик" in (' + name + ')'
+            jql_tester = 'status in (Closed, Протестированный) AND "Дата проверки" >= "' + self.request_date[0] + ' 06:00" AND "Дата проверки" <= "' + self.request_date[1] + ' 22:00" AND "Испытатель/тестировщик" in (' + name + ')'
             issues_list = self.__get_issue_list(jira, jql_all)
-            issues_list_krt = self.__get_issue_list(jira, jql_krt)
+            issues_list_tester = self.__get_issue_list(jira, jql_tester)
             self.key = name
 
-            self.dict_persons.update(self.__dictPersons(jira, issues_list, issues_list_krt))
-            break
+            self.dict_persons.update(self.__dictPersons(jira, issues_list, issues_list_tester))
+            if conf.get_launch_mode() != 'print':
+                break
     @staticmethod
     def __get_issue_list(jira, jql):
         start = 0
@@ -159,8 +65,7 @@ class DictPersons:
         issues_list = None
         while True:
             if issues_list == None:
-                issues_list = jira.search_issues(jql, start,
-                                                 leng)  # второй параметр говорит место старта, третий сколько задач вычитать
+                issues_list = jira.search_issues(jql, start, leng)  #2 параметр говорит место старта, 3 сколько задач вычитать
             else:
                 issues_list.extend(jira.search_issues(jql, start, leng))
             start += 50
@@ -168,44 +73,51 @@ class DictPersons:
                 break
         return issues_list
 
-    def __dictPersons(self, jira, issues_list, issues_list_krt):
-        dict_persons = dict()
+    def __dictPersons(self, jira, issues_list, issues_list_tester):
         if issues_list != None:
             for i in issues_list:
                 issue = jira.issue(i)
-                if issue.fields.assignee.name not in dict_persons:
-                    if issue.fields.customfield_10106 != None:
-                        dict_persons[issue.fields.assignee.name] = [issue.fields.assignee.displayName, issue.fields.customfield_10106, self.short_name(issue.fields.assignee.displayName), [issue]]
+                if issue.fields.project.key == 'TS':
+                    if issue.fields.assignee.name not in self.dict_persons:
+                        if issue.fields.customfield_10106 != None:
+                            self.dict_persons[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}}}
+                        else:
+                            self.dict_persons[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}}}
+                            self.issue_error += str(issue) + ' '
                     else:
-                        dict_persons[issue.fields.assignee.name] = [issue.fields.assignee.displayName, 0.0, self.short_name(issue.fields.assignee.displayName), [issue]]
-                        self.issue_error += str(issue) + ' '
+                        try:
+                            self.dict_persons[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}
+                        except TypeError:
+                            self.issue_error += str(issue) + ' '
                 else:
-                    try:
-                        dict_persons[issue.fields.assignee.name][1] = round(dict_persons[issue.fields.assignee.name][1] + issue.fields.customfield_10106, 1)
-                    except TypeError:
-                        self.issue_error += str(issue) + ' '
-                    dict_persons[issue.fields.assignee.name][3].append(issue)
-        if issues_list_krt != None:
-            for i in issues_list_krt:
+                    if issue.fields.assignee.name not in self.dict_persons:
+                        if issue.fields.customfield_10106 != None:
+                            self.dict_persons[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.project.key}}}
+                        else:
+                            self.dict_persons[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.project.key}}}
+                            self.issue_error += str(issue) + ' '
+                    else:
+                        try:
+                            self.dict_persons[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.project.key}
+                        except TypeError:
+                            self.issue_error += str(issue) + ' '
+        if issues_list_tester != None:
+            for i in issues_list_tester:
                 issue = jira.issue(i)
-                if issue.fields.customfield_10408.name not in dict_persons:
+                if issue.fields.customfield_10408.name not in self.dict_persons:
                     if issue.fields.customfield_10412 != None:
-                        dict_persons[issue.fields.customfield_10408.name] = [issue.fields.customfield_10408.displayName, issue.fields.customfield_10412, self.short_name(issue.fields.assignee.displayName), [issue]]
+                        self.dict_persons[issue.fields.customfield_10408.name] = {'name': self.short_name(issue.fields.customfield_10408.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10412, 'dev_name': issue.fields.project.key}}}
                     else:
-                        dict_persons[issue.fields.customfield_10408.name] = [issue.fields.customfield_10408.displayName,
-                                                                             0.0, self.short_name(
-                                issue.fields.assignee.displayName), [issue]]
+                        self.dict_persons[issue.fields.customfield_10408.name] = {'name': self.short_name(issue.fields.customfield_10408.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.project.key}}}
                         self.issue_error += str(issue) + ' '
                 else:
                     try:
-                        dict_persons[issue.fields.customfield_10408.name][1] = round(
-                            dict_persons[issue.fields.customfield_10408.name][1] + issue.fields.customfield_10412, 1)
+                        self.dict_persons[issue.fields.customfield_10408.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10412, 'dev_name': issue.fields.project.key}
                     except TypeError:
-                        self.issue_error += str(issue) + ' '
+                        self.issue_error += str(issue) + '-задача не оценена, '
                     except AttributeError:
-                        self.issue_error += str(issue) + ' '
-                    dict_persons[issue.fields.customfield_10408.name][3].append(issue)
-        return dict_persons
+                        self.issue_error += str(issue) + '-поля с оценкой не существует, '
+        return self.dict_persons
 
     def getDictPersons(self):
         return self.dict_persons
@@ -218,6 +130,29 @@ class DictPersons:
 
     def get_estimate(self):
         return self.dict_persons[self.key][1]
+
+    def get_all_estimate(self):
+        person_dict = dict()
+        for person in self.dict_persons.keys():
+            estimate_result = 0.0
+            for issue in self.dict_persons[person]['issue']:
+                estimate_result = round(estimate_result + self.dict_persons[person]['issue'][issue]['estimate'], 1)
+            person_dict[self.dict_persons[person]['name']] = estimate_result
+        return person_dict
+
+    def get_estimate_to_project(self):
+        person_dict = dict()
+        for person in self.dict_persons.keys():
+            sett = set()
+            for issue in self.dict_persons[person]['issue']:
+                sett.add(self.dict_persons[person]['issue'][issue]['dev_name'])
+            dev = dict()
+            for ittr in sett:
+                dev[ittr] = 0.0
+            for iss in self.dict_persons[person]['issue']:
+                dev[self.dict_persons[person]['issue'][iss]['dev_name']] = round(dev[self.dict_persons[person]['issue'][iss]['dev_name']] + self.dict_persons[person]['issue'][iss]['estimate'], 1)
+            person_dict[self.dict_persons[person]['name']] = dev
+        return person_dict
 
     @staticmethod
     def short_name(name):
@@ -245,6 +180,28 @@ class OutputToStr:
         print(output)
         print(dict_Persons.get_issue_error())
         return output
+
+    @staticmethod
+    def text_for_file(dict_Persons):
+        # Определяем самое длинное имя
+        max_len_name = str()
+        for key1 in dict_Persons.getDictPersons().keys():
+            if len(max_len_name) < len(dict_Persons.getDictPersons()[key1][2]):
+                max_len_name = dict_Persons.getDictPersons()[key1][2]
+
+        vivod = ''
+
+
+        for key in dict_Persons.getDictPersons().keys():
+            issue = str()
+            for x in dict_Persons.getDictPersons()[key][3]:
+                issue += str(x) + ' '
+            vivod += dict_Persons.getDictPersons()[key][2] + '_' * (len(max_len_name) + 1 - len(dict_Persons.getDictPersons()[key][2])) + str(dict_Persons.getDictPersons()[key][1]) + '\n' + f'{issue}' + '\n'
+        vivod = vivod + dict_Persons.get_issue_error()
+        print(vivod)
+        # Сохранение в файл
+        # with open('_ОТЧЕТ_' + date_file[0] + '-' + date_file[1] + '.txt', 'w', encoding='utf-8') as f_n:
+        #     f_n.write(vivod)
 
 
 class MainWindow(QMainWindow):
@@ -287,12 +244,37 @@ class MainWindow(QMainWindow):
         self.timer.start(1800000)
         self.timer.timeout.connect(self.output_to_plain_text)
 
-    def output_to_plain_text(self):
-        self.result = DictPersons(self.ConnectJira, self.conf.get_date())
-        self.plane2.setPlainText(OutputToStr.text(self.result))
-        self.lable_estimate.setText(str(self.result.get_estimate()))
+        self.timerPrint = QTimer()
 
-    def authorized(self):
+        self.timerPrint.timeout.connect(self.output_to_file_text)
+
+    def output_to_plain_text(self):
+        try:
+            self.result = DictPersons(self.ConnectJira, self.conf)
+            self.plane2.setPlainText(OutputToStr.text(self.result))
+            self.lable_estimate.setText(str(self.result.get_estimate()))
+        except KeyError:
+            self.plane2.setPlainText('Закрытых задач не обнаружено')
+
+    def output_to_file_text(self):
+        self.result = DictPersons(self.ConnectJira, self.conf)
+        date = self.result.get_request_time()
+        # OutputToStr.text_for_file(self.result)
+        # print(self.result.getDictPersons())
+        stroka = 'ОТЧЕТ с ' + date[0] + ' по ' + date[1] + '\n'
+        for person in self.result.get_all_estimate().keys():
+            print(person + ' - ', self.result.get_all_estimate()[person])
+            stroka += '\n' + person + ' - ' + str(self.result.get_all_estimate()[person]) + '\n'
+            for g in self.result.get_estimate_to_project()[person].keys():
+                print('    ' + g + ' - ', self.result.get_estimate_to_project()[person][g])
+                stroka +='    ' + g + ' - ' + str(self.result.get_estimate_to_project()[person][g]) + '\n'
+        with open('_ОТЧЕТ_' + date[0] + '-' + date[1] + '.txt', 'w', encoding='utf-8') as f_n:
+            f_n.write(stroka)
+
+
+        sys.exit()
+
+    def authorized_app(self):
         central_widget = QWidget(self)
         # self.setCentralWidget(central_widget)
 
@@ -352,7 +334,7 @@ class MainWindow(QMainWindow):
 
         return central_widget
 
-    def not_authorized(self):
+    def not_authorized_app(self):
         central_widget = QWidget(self)
         # self.setCentralWidget(central_widget)
         grid_layout = QGridLayout(self)
@@ -389,47 +371,73 @@ class MainWindow(QMainWindow):
 
         return central_widget
 
+    def print_mod_app(self):
+        central_widget = QWidget(self)
+        grid_layout = QGridLayout(self)
+        central_widget.setLayout(grid_layout)
+
+        self.btn_close = QPushButton("Закрыть программу")
+        self.btn_close.clicked.connect(qApp.quit)
+        grid_layout.addWidget(self.btn_close, 0, 0)
+
+        self.lable_log_auth = QLabel('Режим вывода в файл. Ожидайте')
+        grid_layout.addWidget(self.lable_log_auth, 1, 0)
+
+        grid_layout.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Expanding), 2, 0)
+
+        self.output_to_file_text()
+
+        return central_widget
+
     def __log_in(self, url='', login='', password=''):
+        #Проверяем что пользователь уже вводил данные
         if self.conf.get_url_server_jira() != '' and self.conf.get_login() != '':
             self.ConnectJira = ConnectToJIRA(self.conf.get_url_server_jira(), self.conf.get_login(), self.conf.get_password())
             if self.ConnectJira.isConnect() == 1:
-                central_widget = self.authorized()
+                if self.conf.get_launch_mode() != 'print':
+                    central_widget = self.authorized_app()
+                else:
+                    central_widget = self.print_mod_app()
                 # self.conf.set_url_login_password(url, login, password)
                 self.timerHide.start(self.conf.get_timeout_hide())
             elif self.ConnectJira.isConnect() == 3:
-                central_widget = self.not_authorized()
+                central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Ошибка подключения к серверу!')
             elif self.ConnectJira.isConnect() == 2:
-                central_widget = self.not_authorized()
+                central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Ошибка авторизации!')
             else:
-                central_widget = self.not_authorized()
+                central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Неизвестная ошибка!')
             self.setCentralWidget(central_widget)
             return self.ConnectJira.isConnect()
+        #Если пользователь ранее не авторизовывался, то проверяем что поля для авторизации не пустые
         elif login != '' and password != '':
             self.ConnectJira = ConnectToJIRA(url, login, password)
             if self.ConnectJira.isConnect() == 1:
-                central_widget = self.authorized()
+                if self.conf.get_launch_mode() != 'print':
+                    central_widget = self.authorized_app()
+                else:
+                    self.print_mod_app()
                 self.conf.set_url_login_password(url, login, password)
                 self.timerHide.start(self.conf.get_timeout_hide())
             elif self.ConnectJira.isConnect() == 3:
-                central_widget = self.not_authorized()
+                central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Ошибка подключения к серверу!')
             elif self.ConnectJira.isConnect() == 2:
-                central_widget = self.not_authorized()
+                central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Ошибка авторизации!')
             else:
-                central_widget = self.not_authorized()
+                central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Неизвестная ошибка!')
             self.setCentralWidget(central_widget)
             return self.ConnectJira.isConnect()
         else:
-            central_widget = self.not_authorized()
+            central_widget = self.not_authorized_app()
             self.setCentralWidget(central_widget)
 
     def __log_out(self):
-        central_widget = self.not_authorized()
+        central_widget = self.not_authorized_app()
         self.setCentralWidget(central_widget)
         print('Пользователь разлогинился')
         print('Удаление логина из конфигурации')

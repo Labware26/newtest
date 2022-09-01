@@ -2,7 +2,7 @@
     "url_server_jira": "http://192.168.100.230:8080/",
     "login": "",
     "password": "",
-    "launch_mode": "noprint",
+    "launch_mode": "print",
     "date_start": "",
     "date_end": "",
     "timeout_hide": 10000,
