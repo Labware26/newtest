@@ -263,9 +263,12 @@ class MainWindow(QMainWindow):
         try:
             result = DictPersons(self.ConnectJira, self.conf)  # Делаем выборку по сотрудникам в jira
             date = result.get_request_time()  # Получаем дату выборки отчета
+            ierror = ''
+            if result.issue_error != 'Проблемы с оценкой!:\n':
+                ierror = result.issue_error
             for person in result.get_all_estimate().keys():
                 print('с ' + date[0] + ' по ' + date[1] + '\n' + person + ' - ', result.get_all_estimate()[person])
-                self.plane2.setPlainText('с ' + date[0] + ' по ' + date[1] + '\n' + person + '\n' + result.issue_error)
+                self.plane2.setPlainText('с ' + date[0] + ' по ' + date[1] + '\n' + person + '\n' + ierror)
                 self.lable_estimate.setText(str(result.get_all_estimate()[person]))
             print(result.issue_error)  # Выводим в консоль задачи с неккоректной оценкой
         except KeyError:
@@ -383,11 +386,14 @@ class MainWindow(QMainWindow):
         lable_login = QLabel("Логин:")
         grid_layout.addWidget(lable_login, 2, 0)
         self.line_edit_login = QLineEdit()
+        self.line_edit_login.returnPressed.connect(lambda: self.__log_in(self.line_edit_url.text(), self.line_edit_login.text(), self.line_edit_password.text()))
         grid_layout.addWidget(self.line_edit_login, 3, 0)
 
         lable_password = QLabel("Пароль:")
         grid_layout.addWidget(lable_password, 4, 0)
         self.line_edit_password = QLineEdit()
+        self.line_edit_password.setEchoMode(QLineEdit.Password)
+        self.line_edit_password.returnPressed.connect(lambda: self.__log_in(self.line_edit_url.text(), self.line_edit_login.text(), self.line_edit_password.text()))
         grid_layout.addWidget(self.line_edit_password, 5, 0)
 
         self.btn_auth = QPushButton("Авторизоваться")

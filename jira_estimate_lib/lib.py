@@ -2,6 +2,9 @@ import datetime
 import json
 
 
+ALFAVIT = 'zyxvwutsrqponmlkjihgfedcba0987654321ZYXWVUTSRQPONMLKJIHGFEDCBA'
+
+
 class FileIsNotCorrectError(Exception):
     def __init__(self, *arg):
         pass
@@ -22,10 +25,12 @@ class Configuration:
                                  'launch_mode': 'noprint', 'date_start': '', 'date_end': '', 'timeout_hide': 10000,
                                  'point_size': 11, 'bold': False}
         try:
-            with open('config.json', 'r', encoding='utf-8') as f_conf:
+            with open('config.json', 'r', encoding='utf-8') as f_conf:  # Вычитываем конфигурацию из файла
                 self.configuration = json.load(f_conf)
                 print('Считан файл конфигурации ' + f_conf.name)
-            if self.configuration.keys() != default_configuration.keys():
+                self.configuration['login'] = self.deshifr(self.configuration['login'])  # Дешифруем логин из файла
+                self.configuration['password'] = self.deshifr(self.configuration['password'])  # Дешифруем пароль из файла
+            if self.configuration.keys() != default_configuration.keys():  # Проверяем файл на корректное содержание
                 raise FileIsNotCorrectError('Содержимое файла ' + f_conf.name + ' не корректно')
         except (FileNotFoundError, FileIsNotCorrectError) as log:
             print(log)
@@ -68,11 +73,11 @@ class Configuration:
         self.save_configuration()
 
     def set_login(self, login):
-        self.configuration['login'] = login
+        self.configuration['login'] = self.shifr(login)
         self.save_configuration()
 
     def set_password(self, password):
-        self.configuration['password'] = password
+        self.configuration['password'] = self.shifr(password)
         self.save_configuration()
 
     def set_launch_mode(self, launch_mode):
@@ -81,8 +86,8 @@ class Configuration:
 
     def set_url_login_password(self, url_server_jira, login, password):
         self.configuration['url_server_jira'] = url_server_jira
-        self.configuration['login'] = login
-        self.configuration['password'] = password
+        self.configuration['login'] = self.shifr(login)
+        self.configuration['password'] = self.shifr(password)
         self.save_configuration()
 
     def save_configuration(self):
@@ -94,4 +99,29 @@ class Configuration:
         except FileNotFoundError:
             print('Ошибка открытия файла ' + f_conf.name + 'для записи')
             return False
+
+    def shifr(self, text):
+        itog = ''
+        for i in text:
+            place = ALFAVIT.find(i)
+            new_place = place + 5
+            if new_place > len(ALFAVIT):
+                new_place = new_place - len(ALFAVIT)
+            if i in ALFAVIT:
+                itog += ALFAVIT[new_place]  # Задаем значения в итог
+            else:
+                itog += i
+        return itog
+
+    def deshifr(self, text):
+        itog = ''
+        for i in text:
+            place = ALFAVIT.find(i)
+            new_place = place - 5
+            if i in ALFAVIT:
+                itog += ALFAVIT[new_place]  # Задаем значения в итог
+            else:
+                itog += i
+        return itog
+
 
