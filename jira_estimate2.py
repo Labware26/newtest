@@ -274,7 +274,6 @@ class MainWindow(QMainWindow):
         except KeyError:
             self.plane2.setPlainText('Закрытых задач не обнаружено')
 
-
     def output_to_file(self):
         result = DictPersons(self.ConnectJira, self.conf)  # Делаем выборку по сотрудникам в jira
         date = result.get_request_time()  # Получаем дату выборки отчета
