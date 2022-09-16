@@ -230,13 +230,13 @@ class OutputToStr:
     def text(dict_Persons):
         # Определяем самое длинное имя
         max_len_name = str()
-        for r in dict_Persons.getDictPersons().keys():
-            if len(max_len_name) < len(dict_Persons.getDictPersons()[r][2]):
-                max_len_name = dict_Persons.getDictPersons()[r][2]
+        for r in dict_Persons.get_from_jira_result().keys():
+            if len(max_len_name) < len(dict_Persons.get_from_jira_result()[r][2]):
+                max_len_name = dict_Persons.get_from_jira_result()[r][2]
 
         output = ''
-        for key in dict_Persons.getDictPersons().keys():
-            output += dict_Persons.getDictPersons()[key][2] + '\n'
+        for key in dict_Persons.get_from_jira_result().keys():
+            output += dict_Persons.get_from_jira_result()[key][2] + '\n'
         time = dict_Persons.get_request_time()
         if dict_Persons.get_issue_error() == 'Не оцененные задачи: ':
             output = 'c ' + time[0] + ' по ' + time[1] + '\n' + output

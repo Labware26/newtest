@@ -11,12 +11,12 @@ class FileIsNotCorrectError(Exception):
 
 
 #Возвращает кортеж из первого числа текущего месяца и текущую дату
-def request_time():
-    date_now = datetime.datetime.now().date()  #Получаем текущую дату в формате 2022-07-01
-    month_now = date_now.strftime("%m")  #Получаем номер текущего месяца в фомате - 07
-    year_now = str(date_now.year)  #Получаем номер текущего года в формате - 2022
-    the_beginning_of_the_month = year_now + '-' + month_now + '-01'  #Получаем дату начала текущего месяца в формате 2022-07-01
-    return the_beginning_of_the_month, str(date_now)
+# def request_time():
+#     date_now = datetime.datetime.now().date()  #Получаем текущую дату в формате 2022-07-01
+#     month_now = date_now.strftime("%m")  #Получаем номер текущего месяца в фомате - 07
+#     year_now = str(date_now.year)  #Получаем номер текущего года в формате - 2022
+#     the_beginning_of_the_month = year_now + '-' + month_now + '-01'  #Получаем дату начала текущего месяца в формате 2022-07-01
+#     return the_beginning_of_the_month, str(date_now)
 
 
 class Configuration:

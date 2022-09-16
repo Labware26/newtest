@@ -1,4 +1,4 @@
-import xlrd, xlwt  # Работа с EXCEL
+import xlwt  # Работа с EXCEL
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QWidget, QSystemTrayIcon, QSpacerItem, \
     QSizePolicy, QMenu, QStyle, qApp, QAction, QPushButton, QPlainTextEdit, QLabel, QLineEdit, QHBoxLayout, QFrame, \
     QGraphicsDropShadowEffect
@@ -7,7 +7,9 @@ from PyQt5.QtGui import QFont, QColor
 from jira import JIRA
 from re import search
 import sys
-from jira_estimate_lib.lib import *
+from github.jira_estimate_lib.from_jira_result import FromJiraResult
+from jira_estimate_lib.cases import Cases
+from jira_estimate_lib.configuration import *
 
 
 class ConnectToJIRA:
@@ -36,154 +38,18 @@ class ConnectToJIRA:
         return self.isCon
 
 
-class DictPersons:
-    def __init__(self, connect_to_jira, conf):
-        self.config = conf
-        self.dict_persons = dict()
-        jira = connect_to_jira.getConnectToJira()
-        self.issue_error = 'Проблемы с оценкой!:\n'
-        self.dict_persons = dict()
-        with open('person_list.ini', 'r', encoding='utf-8') as f_n:
-            person_file = f_n.read().split()
-        self.request_date = conf.get_date()
-        if conf.get_date()[0] == '' or conf.get_date()[1] == '':
-            self.request_date = request_time()  #Получаем даты текущего месяца для выгрузки
-        self.key = str()
-        for name in person_file:
-            jql_all = 'cf[10110] >= "' + self.request_date[0] + ' 06:00" AND cf[10110] <= "' + self.request_date[1] + ' 22:00" AND assignee in (' + name + ')'
-            jql_tester = 'status in (Closed, Протестированный) AND "Дата проверки" >= "' + self.request_date[0] + ' 06:00" AND "Дата проверки" <= "' + self.request_date[1] + ' 22:00" AND "Испытатель/тестировщик" in (' + name + ')'
-            issues_list = self.__get_issue_list(jira, jql_all)
-            issues_list_tester = self.__get_issue_list(jira, jql_tester)
-            self.key = name
-
-            self.dict_persons.update(self.__dictPersons(jira, issues_list, issues_list_tester))
-
-            if conf.get_launch_mode() != 'print':
-                break
-
-    @staticmethod
-    def __get_issue_list(jira, jql):
-        start = 0
-        leng = 50
-        issues_list = None
-        while True:
-            if issues_list == None:
-                issues_list = jira.search_issues(jql, start, leng)  #2 параметр говорит место старта, 3 сколько задач вычитать
-            else:
-                issues_list.extend(jira.search_issues(jql, start, leng))
-            start += 50
-            if start > issues_list.total:
-                break
-        return issues_list
-
-    def __dictPersons(self, jira, issues_list, issues_list_tester):
-        if issues_list != None:
-            for i in issues_list:
-                issue = jira.issue(i)
-                if issue.fields.project.key == 'TS':
-                    if issue.fields.assignee.name not in self.dict_persons:
-                        if issue.fields.customfield_10106 != None:
-                            self.dict_persons[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}}}
-                        else:
-                            self.dict_persons[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}}}
-                            self.issue_error += str(issue) + ' - задача не оценена\n'
-                    else:
-                        if issue.fields.customfield_10106 != None:
-                            self.dict_persons[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}
-                        else:
-                            self.dict_persons[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': 0.0, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}
-                            self.issue_error += str(issue) + ' - задача не оценена\n'
-                else:
-                    if issue.fields.assignee.name not in self.dict_persons:
-                        if issue.fields.customfield_10106 != None:
-                            self.dict_persons[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.project.key}}}
-                        else:
-                            self.dict_persons[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.project.key}}}
-                            self.issue_error += str(issue) + ' - задача не оценена\n'
-                    else:
-                        if issue.fields.customfield_10106 != None:
-                            self.dict_persons[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.project.key}
-                        else:
-                            self.dict_persons[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': 0.0, 'dev_name': issue.fields.project.key}
-                            self.issue_error += str(issue) + ' - задача не оценена\n'
-        if issues_list_tester != None:
-            for i in issues_list_tester:
-                issue = jira.issue(i)
-                if issue.fields.customfield_10408.name not in self.dict_persons:
-                    try:
-                        if issue.fields.customfield_10412 != None:
-                            self.dict_persons[issue.fields.customfield_10408.name] = {'name': self.short_name(issue.fields.customfield_10408.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10412, 'dev_name': issue.fields.project.key}}}
-                        else:
-                            self.dict_persons[issue.fields.customfield_10408.name] = {'name': self.short_name(issue.fields.customfield_10408.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.project.key}}}
-                            self.issue_error += str(issue) + ' - задача не оценена\n'
-                    except AttributeError:
-                        self.dict_persons[issue.fields.customfield_10408.name] = {'name': self.short_name(issue.fields.customfield_10408.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.project.key}}}
-                        self.issue_error += str(issue) + ' - поля с оценкой не существует\n'
-                else:
-                    try:
-                        if issue.fields.customfield_10412 != None:
-                            self.dict_persons[issue.fields.customfield_10408.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10412, 'dev_name': issue.fields.project.key}
-                        else:
-                            self.dict_persons[issue.fields.customfield_10408.name]['issue'][str(issue)] = { 'estimate': 0.0, 'dev_name': issue.fields.project.key}
-                            self.issue_error += str(issue) + ' - задача не оценена\n'
-                    except AttributeError:
-                        self.dict_persons[issue.fields.customfield_10408.name]['issue'][str(issue)] = {'estimate': 0.0, 'dev_name': issue.fields.project.key}
-                        self.issue_error += str(issue) + ' - поля с оценкой не существует\n'
-        return self.dict_persons
-
-    def getDictPersons(self):
-        return self.dict_persons
-
-    def get_issue_error(self):
-        return self.issue_error
-
-    def get_request_time(self):
-        return self.request_date
-
-    def get_all_estimate(self):
-        person_dict = dict()
-        if self.dict_persons != {}:
-            for person in self.dict_persons.keys():
-                estimate_result = 0.0
-                for issue in self.dict_persons[person]['issue']:
-                    estimate_result = round(estimate_result + self.dict_persons[person]['issue'][issue]['estimate'], 1)
-                person_dict[self.dict_persons[person]['name']] = estimate_result
-        else:
-            person_dict['Закрытых задач нет'] = 0.0
-        return person_dict
-
-    def get_estimate_to_project(self):
-        person_dict = dict()
-        for person in self.dict_persons.keys():
-            sett = set()
-            for issue in self.dict_persons[person]['issue']:
-                sett.add(self.dict_persons[person]['issue'][issue]['dev_name'])
-            dev = dict()
-            for ittr in sett:
-                dev[ittr] = 0.0
-            for iss in self.dict_persons[person]['issue']:
-                dev[self.dict_persons[person]['issue'][iss]['dev_name']] = round(dev[self.dict_persons[person]['issue'][iss]['dev_name']] + self.dict_persons[person]['issue'][iss]['estimate'], 1)
-            person_dict[self.dict_persons[person]['name']] = dev
-        return person_dict
-
-    @staticmethod
-    def short_name(name):
-        regex_name = search(r'^\S+\s\S+', name).group()
-        return regex_name
-
-
 class OutputToStr:  # Пока не используется
     @staticmethod
     def text(dict_Persons):
         # Определяем самое длинное имя
         max_len_name = str()
-        for r in dict_Persons.getDictPersons().keys():
-            if len(max_len_name) < len(dict_Persons.getDictPersons()[r][2]):
-                max_len_name = dict_Persons.getDictPersons()[r][2]
+        for r in dict_Persons.get_from_jira_result().keys():
+            if len(max_len_name) < len(dict_Persons.get_from_jira_result()[r][2]):
+                max_len_name = dict_Persons.get_from_jira_result()[r][2]
 
         output = ''
-        for key in dict_Persons.getDictPersons().keys():
-            output += dict_Persons.getDictPersons()[key][2] + '\n'
+        for key in dict_Persons.get_from_jira_result().keys():
+            output += dict_Persons.get_from_jira_result()[key][2] + '\n'
         time = dict_Persons.get_request_time()
         if dict_Persons.get_issue_error() == 'Не оцененные задачи: ':
             output = 'c ' + time[0] + ' по ' + time[1] + '\n' + output
@@ -197,18 +63,18 @@ class OutputToStr:  # Пока не используется
     def text_for_file(dict_Persons):
         # Определяем самое длинное имя
         max_len_name = str()
-        for key1 in dict_Persons.getDictPersons().keys():
-            if len(max_len_name) < len(dict_Persons.getDictPersons()[key1][2]):
-                max_len_name = dict_Persons.getDictPersons()[key1][2]
+        for key1 in dict_Persons.get_from_jira_result().keys():
+            if len(max_len_name) < len(dict_Persons.get_from_jira_result()[key1][2]):
+                max_len_name = dict_Persons.get_from_jira_result()[key1][2]
 
         vivod = ''
 
 
-        for key in dict_Persons.getDictPersons().keys():
+        for key in dict_Persons.get_from_jira_result().keys():
             issue = str()
-            for x in dict_Persons.getDictPersons()[key][3]:
+            for x in dict_Persons.get_from_jira_result()[key][3]:
                 issue += str(x) + ' '
-            vivod += dict_Persons.getDictPersons()[key][2] + '_' * (len(max_len_name) + 1 - len(dict_Persons.getDictPersons()[key][2])) + str(dict_Persons.getDictPersons()[key][1]) + '\n' + f'{issue}' + '\n'
+            vivod += dict_Persons.get_from_jira_result()[key][2] + '_' * (len(max_len_name) + 1 - len(dict_Persons.get_from_jira_result()[key][2])) + str(dict_Persons.get_from_jira_result()[key][1]) + '\n' + f'{issue}' + '\n'
         vivod = vivod + dict_Persons.get_issue_error()
         print(vivod)
         # Сохранение в файл
@@ -231,7 +97,8 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(QSize(260, 250))
         self.setMaximumSize(QSize(260, 250))
         self.move(self.width - self.minimumWidth(), self.height - self.minimumHeight() - 50)
-        self.setWindowFlags(Qt.ToolTip | Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.ToolTip | Qt.WindowStaysOnTopHint)  # Поверху всех окон
+        # self.setWindowFlags(Qt.ToolTip | Qt.WindowStaysOnBottomHint)  # Понизу всех окон
         self.setStyleSheet("MainWindow{background-color:rgb(195, 201, 159)}")
 
         self.timerHide = QTimer()
@@ -261,7 +128,7 @@ class MainWindow(QMainWindow):
 
     def output_to_plain_text(self):
         try:
-            result = DictPersons(self.ConnectJira, self.conf)  # Делаем выборку по сотрудникам в jira
+            result = FromJiraResult(self.ConnectJira, self.conf)  # Делаем выборку по сотрудникам в jira
             date = result.get_request_time()  # Получаем дату выборки отчета
             ierror = ''
             if result.issue_error != 'Проблемы с оценкой!:\n':
@@ -275,7 +142,8 @@ class MainWindow(QMainWindow):
             self.plane2.setPlainText('Закрытых задач не обнаружено')
 
     def output_to_file(self):
-        result = DictPersons(self.ConnectJira, self.conf)  # Делаем выборку по сотрудникам в jira
+        result = FromJiraResult(self.ConnectJira, self.conf)  # Делаем выборку в jira по задачам
+
         date = result.get_request_time()  # Получаем дату выборки отчета
         # Обрабатываем результат выборки и сохраняем в .txt файл
         stroka = 'ОТЧЕТ с ' + date[0] + ' по ' + date[1] + '\n'
@@ -309,6 +177,16 @@ class MainWindow(QMainWindow):
 
         wb.save('_ОТЧЕТ_' + date[0] + '-' + date[1] + '.xls')  # Сохраняем книгу c заданным именем
         print(result.issue_error)  # Выводим в консоль задачи с неккоректной оценкой
+
+        # Делаем выборку в jira по кейсам и сохраняем в файл
+        cases_estimate = result.get_cases_estimate(result.get_from_cases_rezult())  # Делаем выборку в jira по кейсам
+        period_report = 'ОТЧЕТ-Кейсы с ' + date[0] + ' по ' + date[1] + '\n'
+        for name_by_cases in cases_estimate.keys():
+            period_report += name_by_cases + ' - ' + str(cases_estimate[name_by_cases]) + '\n'
+        period_report += '\n' + result.cases_error
+        with open('_ОТЧЕТ-Кейсы_' + date[0] + '-' + date[1] + '.txt', 'w', encoding='utf-8') as f_c:
+            f_c.write(period_report)
+
         sys.exit()  # Завершаем работу программы
 
     def authorized_app(self):
@@ -373,7 +251,6 @@ class MainWindow(QMainWindow):
 
     def not_authorized_app(self):
         central_widget = QWidget(self)
-        # self.setCentralWidget(central_widget)
         grid_layout = QGridLayout(self)
         central_widget.setLayout(grid_layout)
 
@@ -390,14 +267,20 @@ class MainWindow(QMainWindow):
         grid_layout.addWidget(self.line_edit_login, 3, 0)
 
         lable_password = QLabel("Пароль:")
+        # lable_password.setToolTip('Окно для ввода пароля JIRA')
+        # lable_password.setToolTipDuration(4000)
         grid_layout.addWidget(lable_password, 4, 0)
         self.line_edit_password = QLineEdit()
+        # self.line_edit_password.setToolTip('Введите пароль')
+        # self.line_edit_password.setToolTipDuration(4000)
         self.line_edit_password.setEchoMode(QLineEdit.Password)
         self.line_edit_password.returnPressed.connect(lambda: self.__log_in(self.line_edit_url.text(), self.line_edit_login.text(), self.line_edit_password.text()))
         grid_layout.addWidget(self.line_edit_password, 5, 0)
 
         self.btn_auth = QPushButton("Авторизоваться")
         self.btn_auth.clicked.connect(lambda: self.__log_in(self.line_edit_url.text(), self.line_edit_login.text(), self.line_edit_password.text()))
+        self.btn_auth.setToolTip("Произвести авторизацию")  # Всплывающая подсказка
+        self.btn_auth.setToolTipDuration(4000)  # Время вывода подсказки
         grid_layout.addWidget(self.btn_auth, 6, 0)
 
         self.btn_close = QPushButton("Закрыть программу")
