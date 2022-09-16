@@ -1,7 +1,7 @@
 {
     "url_server_jira": "http://192.168.100.230:8080/",
-    "login": "6lp6mdpn",
-    "password": "7pcem5W5W320",
+    "login": "",
+    "password": "",
     "launch_mode": "print",
     "date_start": "2022-09-01",
     "date_end": "2022-09-10",
