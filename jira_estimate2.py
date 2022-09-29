@@ -3,10 +3,11 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QWidget, QSy
     QSizePolicy, QMenu, QStyle, qApp, QAction, QPushButton, QPlainTextEdit, QLabel, QLineEdit, QHBoxLayout, QFrame, \
     QGraphicsDropShadowEffect
 from PyQt5.QtCore import QTimer, QSize, Qt
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtGui import QFont, QColor, QPalette, QBrush, QPixmap, QIcon, QCloseEvent
 from jira import JIRA
 from re import search
 import sys
+from github.jira_estimate_lib.settings_window import SettingsWindow
 from github.jira_estimate_lib.from_jira_result import FromJiraResult
 from jira_estimate_lib.cases import Cases
 from jira_estimate_lib.configuration import *
@@ -88,17 +89,31 @@ class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
         self.conf = Configuration()  # Считываем файл конфигурации
-
         # Получить размер разрешения монитора
         self.desktop = QApplication.desktop()
         self.screenRect = self.desktop.screenGeometry()
         self.width = self.screenRect.width()
         self.height = self.screenRect.height()
+
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_FileDialogDetailedView))
+        quit_action = QAction("Закрыть", self)
+        quit_action.triggered.connect(qApp.quit)
+        tray_menu = QMenu()
+        tray_menu.addAction(quit_action)
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.show()
+
+        # self.build_rect()
+        # Авторизуемся в программе и делаем подключение к базе
+        self.__log_in(self.conf.get_url_server_jira(), self.conf.get_login(), self.conf.get_password())
+
+
+    def build_rect(self):
         self.setMinimumSize(QSize(260, 250))
         self.setMaximumSize(QSize(260, 250))
         self.move(self.width - self.minimumWidth(), self.height - self.minimumHeight() - 50)
         self.setWindowFlags(Qt.ToolTip | Qt.WindowStaysOnTopHint)  # Поверху всех окон
-        # self.setWindowFlags(Qt.ToolTip | Qt.WindowStaysOnBottomHint)  # Понизу всех окон
         self.setStyleSheet("MainWindow{background-color:rgb(195, 201, 159)}")
 
         self.timerHide = QTimer()
@@ -107,24 +122,10 @@ class MainWindow(QMainWindow):
         self.timerPrint = QTimer()
         self.timerPrint.timeout.connect(self.output_to_file)
 
-        # Авторизуемся в программе и делаем подключение к базе
-        self.__log_in(self.conf.get_url_server_jira(), self.conf.get_login(), self.conf.get_password())
-
-        self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_FileDialogDetailedView))
-
-        quit_action = QAction("Закрыть", self)
-        quit_action.triggered.connect(qApp.quit)
-        tray_menu = QMenu()
-        tray_menu.addAction(quit_action)
-        self.tray_icon.setContextMenu(tray_menu)
-
-        self.tray_icon.show()
-        self.tray_icon.activated.connect(self.__one_click)
-
         self.timer = QTimer()
-        self.timer.start(1800000)
         self.timer.timeout.connect(self.output_to_plain_text)
+
+
 
     def output_to_plain_text(self):
         try:
@@ -140,6 +141,27 @@ class MainWindow(QMainWindow):
             print(result.issue_error)  # Выводим в консоль задачи с неккоректной оценкой
         except KeyError:
             self.plane2.setPlainText('Закрытых задач не обнаружено')
+
+    def output_to_plain_text_circle(self):
+        try:
+            result = FromJiraResult(self.ConnectJira, self.conf)  # Делаем выборку по сотрудникам в jira
+            date = result.get_request_time()  # Получаем дату выборки отчета
+            ierror = ''
+            if result.issue_error != 'Проблемы с оценкой!:\n':
+                ierror = result.issue_error
+                self.lable_att.setToolTip(ierror)
+                self.lable_att.show()
+            for person in result.get_all_estimate().keys():
+                print('с ' + date[0] + ' по ' + date[1] + '\n' + person + ' - ', result.get_all_estimate()[person])
+                self.lable_date.setText('с ' + date[0] + ' по ' + date[1])
+                self.lable_est.setText(str(result.get_all_estimate()[person]))
+                name_s = search(r'^\S+', person).group()
+                self.lable_name.setText(name_s)
+
+            print(result.issue_error)  # Выводим в консоль задачи с неккоректной оценкой
+        except KeyError:
+            self.lable_att.setToolTip('Закрытых задач не обнаружено')
+            self.lable_att.show()
 
     def output_to_file(self):
         result = FromJiraResult(self.ConnectJira, self.conf)  # Делаем выборку в jira по задачам
@@ -190,6 +212,7 @@ class MainWindow(QMainWindow):
         sys.exit()  # Завершаем работу программы
 
     def authorized_app(self):
+        self.build_rect()
         central_widget = QWidget(self)
         # self.setCentralWidget(central_widget)
 
@@ -245,11 +268,105 @@ class MainWindow(QMainWindow):
         grid_layout.addLayout(horizontalLayout, 4, 0)
 
         self.timerHide.start(self.conf.get_timeout_hide())
+        self.timer.start(1800000)
+        self.tray_icon.activated.connect(self.__one_click)  # При нажатии ЛКМ по значку в трее, окно развернется
         self.output_to_plain_text()  # Подсчитываем баллы и выводим на отображение
 
         return central_widget
 
+    def build_circle_app(self):
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        self.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint | Qt.WindowStaysOnBottomHint)
+        self.setWindowTitle("Окно программы")
+        self.resize(230, 230)
+        # self.move(1680, 40)
+        self.move(self.width - 240, self.height - 1040)
+        pixmap = QPixmap("33.png")
+        pal = self.palette()
+        pal.setBrush(QPalette.Normal, QPalette.Window, QBrush(pixmap))
+        pal.setBrush(QPalette.Inactive, QPalette.Window, QBrush(pixmap))
+        self.setPalette(pal)
+        self.setMask(pixmap.mask())
+
+        self.button1 = QPushButton(self)
+        self.button1.setFixedSize(38, 30)
+        self.button1.move(54, 162)
+        self.button1.clicked.connect(self.output_to_plain_text_circle)
+        self.button1.setIcon(QIcon('refresh.png'))
+        self.button1.setIconSize(QSize(24, 24))
+        self.button1.setStyleSheet(
+            'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
+        self.button1.setToolTip('Обновить данные из JIRA')
+
+        self.button2 = QPushButton(self)
+        self.button2.setFixedSize(38, 30)
+        self.button2.move(96, 162)
+        self.button2.clicked.connect(self.show_window_settings)
+        self.button2.setIcon(QIcon('while.png'))
+        self.button2.setIconSize(QSize(24, 24))
+        self.button2.setStyleSheet(
+            'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
+        self.button2.setToolTip('Настройки')
+
+        self.button3 = QPushButton(self)
+        self.button3.setFixedSize(38, 30)
+        self.button3.move(138, 162)
+        self.button3.clicked.connect(qApp.quit)
+        self.button3.setIcon(QIcon('Red-Close-Button.png'))
+        self.button3.setIconSize(QSize(24, 24))
+        self.button3.setStyleSheet(
+            'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
+        self.button3.setToolTip('Закрыть программу')
+
+        self.lable_est = QLabel('0.0', self)
+        self.lable_est.setFixedSize(186, 90)
+        self.lable_est.setAlignment(Qt.AlignCenter)
+        font3 = QFont()
+        font3.setPointSize(40)
+        font3.setBold(True)
+        self.lable_est.setFont(font3)
+        self.lable_est.setStyleSheet('color:rgb(85, 85, 85); background-color:rgb(225, 214, 170); border-radius: 15px')
+        self.lable_est.move(22, 70)
+
+        self.lable_att = QLabel(self)
+        self.lable_att.setFixedSize(27, 24)
+        pixmap1 = QPixmap("attention.png")
+        self.lable_att.setPixmap(pixmap1)
+        self.lable_att.move(102, 195)
+        # self.lable_att.setToolTip('Обнаружены следующие ошибки:\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd')
+        self.lable_att.hide()
+
+        self.lable_date = QLabel('Период отчета', self)
+        self.lable_date.setFixedSize(170, 24)
+        font4 = QFont()
+        font4.setPointSize(8)
+        font4.setBold(False)
+        self.lable_date.setFont(font4)
+        self.lable_date.setAlignment(Qt.AlignCenter)
+        self.lable_date.move(30, 48)
+
+        self.lable_name = QLabel('Фамилия', self)
+        self.lable_name.setFixedSize(170, 24)
+        font5 = QFont()
+        font5.setPointSize(14)
+        font5.setBold(True)
+        self.lable_name.setFont(font5)
+        self.lable_name.setAlignment(Qt.AlignCenter)
+        self.lable_name.setStyleSheet('color:rgb(85, 85, 85);')
+        self.lable_name.move(30, 25)
+
+
+        self.output_to_plain_text_circle()
+        self.show()
+
+    def show_window_settings(self):
+        print('show окна настроек')
+        self.two_window = SettingsWindow(self)
+        self.two_window.show()
+
     def not_authorized_app(self):
+        self.build_rect()
         central_widget = QWidget(self)
         grid_layout = QGridLayout(self)
         central_widget.setLayout(grid_layout)
@@ -317,11 +434,15 @@ class MainWindow(QMainWindow):
             self.ConnectJira = ConnectToJIRA(self.conf.get_url_server_jira(), self.conf.get_login(), self.conf.get_password())
             if self.ConnectJira.isConnect() == 1:
                 if self.conf.get_launch_mode() != 'print':
-                    central_widget = self.authorized_app()
+                    if self.conf.get_interface() == 'circle':
+                        self.build_circle_app()
+                    else:
+                        central_widget = self.authorized_app()
+                        self.timerHide.start(self.conf.get_timeout_hide())
                 else:
                     central_widget = self.print_mod_app()
                 # self.conf.set_url_login_password(url, login, password)
-                self.timerHide.start(self.conf.get_timeout_hide())
+
             elif self.ConnectJira.isConnect() == 3:
                 central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Ошибка подключения к серверу!')
@@ -331,18 +452,25 @@ class MainWindow(QMainWindow):
             else:
                 central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Неизвестная ошибка!')
-            self.setCentralWidget(central_widget)
+            if self.conf.get_interface() != 'circle':
+                self.setCentralWidget(central_widget)
+                print('setCentralWidget1')
             return self.ConnectJira.isConnect()
         #Если пользователь ранее не авторизовывался, то проверяем что поля для авторизации не пустые
         elif login != '' and password != '':
             self.ConnectJira = ConnectToJIRA(url, login, password)  # Пробуем подключиться к jira
             if self.ConnectJira.isConnect() == 1:  # Проверяем на успешность подключения
                 if self.conf.get_launch_mode() != 'print':  # Выбираем отрисовку окна в зависимости от режима запуска
-                    central_widget = self.authorized_app()
+                    if self.conf.get_interface() == 'circle':
+                        self.conf.set_url_login_password(url, login, password)  #Важно записать значения до того как перестроиться форма авторизации
+                        self.build_circle_app()
+                    else:
+                        central_widget = self.authorized_app()
+                        self.conf.set_url_login_password(url, login, password)
+                        self.timerHide.start(self.conf.get_timeout_hide())
                 else:
                     central_widget = self.print_mod_app()
-                self.conf.set_url_login_password(url, login, password)
-                self.timerHide.start(self.conf.get_timeout_hide())
+
             elif self.ConnectJira.isConnect() == 3:
                 central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Ошибка подключения к серверу!')
@@ -352,11 +480,14 @@ class MainWindow(QMainWindow):
             else:
                 central_widget = self.not_authorized_app()
                 self.lable_log_auth.setText('Неизвестная ошибка!')
-            self.setCentralWidget(central_widget)
+            if self.conf.get_interface() != 'circle':
+                self.setCentralWidget(central_widget)
+                print('setCentralWidget2')
             return self.ConnectJira.isConnect()
         else:
             central_widget = self.not_authorized_app()
             self.setCentralWidget(central_widget)
+            print('setCentralWidget3')
 
     def __log_out(self):
         central_widget = self.not_authorized_app()
@@ -381,6 +512,7 @@ class MainWindow(QMainWindow):
     def __one_click(self, reason):
         if reason == QSystemTrayIcon.Trigger:
             self.window_show_hide()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

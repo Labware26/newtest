@@ -23,7 +23,7 @@ class Configuration:
     def __init__(self):
         default_configuration = {'url_server_jira': 'http://192.168.100.230:8080/', 'login': '', 'password': '',
                                  'launch_mode': 'noprint', 'date_start': '', 'date_end': '', 'timeout_hide': 10000,
-                                 'point_size': 11, 'bold': False}
+                                 'point_size': 11, 'bold': False, 'interface': 'circle'}
         try:
             with open('config.json', 'r', encoding='utf-8') as f_conf:  # Вычитываем конфигурацию из файла
                 self.configuration = json.load(f_conf)
@@ -68,6 +68,9 @@ class Configuration:
     def get_date(self):
         return self.configuration['date_start'], self.configuration['date_end']
 
+    def get_interface(self):
+        return self.configuration['interface']
+
     def set_url_server_jira(self, url_server_jira):
         self.configuration['url_server_jira'] = url_server_jira
         self.save_configuration()
@@ -88,6 +91,10 @@ class Configuration:
         self.configuration['url_server_jira'] = url_server_jira
         self.configuration['login'] = self.shifr(login)
         self.configuration['password'] = self.shifr(password)
+        self.save_configuration()
+
+    def set_interface(self, interface):
+        self.configuration['interface'] = interface
         self.save_configuration()
 
     def save_configuration(self):
