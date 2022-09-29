@@ -26,7 +26,7 @@ class MainCircleWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Создание окна произвольной формы")
         self.resize(230, 230)
         self.move(1680, 40)
-        pixmap = QtGui.QPixmap("33.png")
+        pixmap = QtGui.QPixmap("fon.png")
         pal = self.palette()
         pal.setBrush(QtGui.QPalette.Normal, QtGui.QPalette.Window, QtGui.QBrush(pixmap))
         pal.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Window, QtGui.QBrush(pixmap))
