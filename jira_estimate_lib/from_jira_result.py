@@ -8,7 +8,7 @@ class FromJiraResult(Cases):
         super().__init__()
         self.config = config
         self.from_jira_result = dict()
-        self.jira = connect_to_jira.getConnectToJira()
+        self.jira = connect_to_jira.getConnection()
         self.issue_error = 'Проблемы с оценкой!:\n'
         self.cases_error = 'Кейсы без оценки:\n'
         with open('person_list.ini', 'r', encoding='utf-8') as f_n:
@@ -41,41 +41,41 @@ class FromJiraResult(Cases):
         return issues_list
 
     def __from_jira_rezult(self, jira, issues_list_executor, issues_list_tester):
-        if issues_list_executor != None:
+        if issues_list_executor is not None:
             for i in issues_list_executor:
                 issue = jira.issue(i)
                 if issue.fields.project.key == 'TS':
                     if issue.fields.assignee.name not in self.from_jira_result:
-                        if issue.fields.customfield_10106 != None:
+                        if issue.fields.customfield_10106 is not None:
                             self.from_jira_result[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}}}
                         else:
                             self.from_jira_result[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}}}
                             self.issue_error += str(issue) + ' - задача не оценена\n'
                     else:
-                        if issue.fields.customfield_10106 != None:
+                        if issue.fields.customfield_10106 is not None:
                             self.from_jira_result[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}
                         else:
                             self.from_jira_result[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': 0.0, 'dev_name': issue.fields.customfield_10108[0].fields.summary, 'date_close': search(r"\d{4}-\d{2}-\d{2}", issue.fields.resolutiondate).group()}
                             self.issue_error += str(issue) + ' - задача не оценена\n'
                 else:
                     if issue.fields.assignee.name not in self.from_jira_result:
-                        if issue.fields.customfield_10106 != None:
+                        if issue.fields.customfield_10106 is not None:
                             self.from_jira_result[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.project.key}}}
                         else:
                             self.from_jira_result[issue.fields.assignee.name] = {'name': self.short_name(issue.fields.assignee.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.project.key}}}
                             self.issue_error += str(issue) + ' - задача не оценена\n'
                     else:
-                        if issue.fields.customfield_10106 != None:
+                        if issue.fields.customfield_10106 is not None:
                             self.from_jira_result[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10106, 'dev_name': issue.fields.project.key}
                         else:
                             self.from_jira_result[issue.fields.assignee.name]['issue'][str(issue)] = {'estimate': 0.0, 'dev_name': issue.fields.project.key}
                             self.issue_error += str(issue) + ' - задача не оценена\n'
-        if issues_list_tester != None:
+        if issues_list_tester is not None:
             for i in issues_list_tester:
                 issue = jira.issue(i)
                 if issue.fields.customfield_10408.name not in self.from_jira_result:
                     try:
-                        if issue.fields.customfield_10412 != None:
+                        if issue.fields.customfield_10412 is not None:
                             self.from_jira_result[issue.fields.customfield_10408.name] = {'name': self.short_name(issue.fields.customfield_10408.displayName), 'issue': {str(issue): {'estimate': issue.fields.customfield_10412, 'dev_name': issue.fields.project.key}}}
                         else:
                             self.from_jira_result[issue.fields.customfield_10408.name] = {'name': self.short_name(issue.fields.customfield_10408.displayName), 'issue': {str(issue): {'estimate': 0.0, 'dev_name': issue.fields.project.key}}}
@@ -85,7 +85,7 @@ class FromJiraResult(Cases):
                         self.issue_error += str(issue) + ' - поля с оценкой не существует\n'
                 else:
                     try:
-                        if issue.fields.customfield_10412 != None:
+                        if issue.fields.customfield_10412 is not None:
                             self.from_jira_result[issue.fields.customfield_10408.name]['issue'][str(issue)] = {'estimate': issue.fields.customfield_10412, 'dev_name': issue.fields.project.key}
                         else:
                             self.from_jira_result[issue.fields.customfield_10408.name]['issue'][str(issue)] = {'estimate': 0.0, 'dev_name': issue.fields.project.key}
@@ -101,7 +101,7 @@ class FromJiraResult(Cases):
         cases_dict = self.completed_cases(self.request_date)  # Получаем выборку по пройденным тест-кейсам
         print('Получаем информацию по кейсам из базы')
         from_cases_rezult = dict()
-        if cases_dict is not None:
+        if cases_dict != {}:
             for key_name in cases_dict.keys():
                 for tsz in cases_dict[key_name]:
                     issue = self.jira.issue(tsz)

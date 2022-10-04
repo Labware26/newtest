@@ -1,5 +1,5 @@
 from time import sleep
-from selenium.common import NoSuchElementException
+from selenium.common import NoSuchElementException, TimeoutException
 from github.jira_estimate_lib.seleniumbase import Seleniumbase
 from selenium.webdriver.remote.webelement import WebElement
 from typing import List
@@ -49,9 +49,13 @@ class Zefirpage(Seleniumbase):
         print('Приготовились листать страницы')
         list_rez = []
         while True:
-            sleep(0.5)
-            num = self.get_text_from_webelements(self.get_tsz())
-            person = self.get_text_from_webelements(self.get_person_name())
+            try:
+                sleep(0.5)
+                num = self.get_text_from_webelements(self.get_tsz())
+                person = self.get_text_from_webelements(self.get_person_name())
+            except TimeoutException:
+                list_rez = ['Кейсы не проходились']
+                return list_rez
             print('Прочитали данные')
             for i in range(len(person)):
                 list_rez.append([person[i], num[i]])

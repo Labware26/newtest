@@ -1,7 +1,7 @@
 import xlwt  # Работа с EXCEL
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout, QWidget, QSystemTrayIcon, QSpacerItem, \
     QSizePolicy, QMenu, QStyle, qApp, QAction, QPushButton, QPlainTextEdit, QLabel, QLineEdit, QHBoxLayout, QFrame, \
-    QGraphicsDropShadowEffect
+    QGraphicsDropShadowEffect, QVBoxLayout
 from PyQt5.QtCore import QTimer, QSize, Qt
 from PyQt5.QtGui import QFont, QColor, QPalette, QBrush, QPixmap, QIcon, QCloseEvent
 from jira import JIRA
@@ -275,14 +275,15 @@ class MainWindow(QMainWindow):
         return central_widget
 
     def build_circle_app(self):
-        central_widget = QWidget(self)
-        self.setCentralWidget(central_widget)
         self.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint | Qt.WindowStaysOnBottomHint)
-        self.setWindowTitle("Окно программы")
         self.resize(230, 230)
-        # self.move(1680, 40)
         self.move(self.width - 240, self.height - 1040)
-        pixmap = QPixmap("/gfx/fon.png")
+
+        central_widget = QWidget(self)
+        vertical_layout = QVBoxLayout()
+        central_widget.setLayout(vertical_layout)
+
+        pixmap = QPixmap("gfx/fon.png")
         pal = self.palette()
         pal.setBrush(QPalette.Normal, QPalette.Window, QBrush(pixmap))
         pal.setBrush(QPalette.Inactive, QPalette.Window, QBrush(pixmap))
@@ -293,7 +294,7 @@ class MainWindow(QMainWindow):
         self.button1.setFixedSize(38, 30)
         self.button1.move(54, 162)
         self.button1.clicked.connect(self.output_to_plain_text_circle)
-        self.button1.setIcon(QIcon('/gfx/refresh.png'))
+        self.button1.setIcon(QIcon('gfx/refresh.png'))
         self.button1.setIconSize(QSize(24, 24))
         self.button1.setStyleSheet(
             'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
@@ -303,7 +304,7 @@ class MainWindow(QMainWindow):
         self.button2.setFixedSize(38, 30)
         self.button2.move(96, 162)
         self.button2.clicked.connect(self.show_window_settings)
-        self.button2.setIcon(QIcon('/gfx/while.png'))
+        self.button2.setIcon(QIcon('gfx/while.png'))
         self.button2.setIconSize(QSize(24, 24))
         self.button2.setStyleSheet(
             'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
@@ -313,7 +314,7 @@ class MainWindow(QMainWindow):
         self.button3.setFixedSize(38, 30)
         self.button3.move(138, 162)
         self.button3.clicked.connect(qApp.quit)
-        self.button3.setIcon(QIcon('/gfx/Red-Close-Button.png'))
+        self.button3.setIcon(QIcon('gfx/Red-Close-Button.png'))
         self.button3.setIconSize(QSize(24, 24))
         self.button3.setStyleSheet(
             'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
@@ -331,7 +332,7 @@ class MainWindow(QMainWindow):
 
         self.lable_att = QLabel(self)
         self.lable_att.setFixedSize(27, 24)
-        pixmap1 = QPixmap("/gfx/attention.png")
+        pixmap1 = QPixmap("gfx/attention.png")
         self.lable_att.setPixmap(pixmap1)
         self.lable_att.move(102, 195)
         # self.lable_att.setToolTip('Обнаружены следующие ошибки:\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd')
@@ -356,13 +357,14 @@ class MainWindow(QMainWindow):
         self.lable_name.setStyleSheet('color:rgb(85, 85, 85);')
         self.lable_name.move(30, 25)
 
-
+        self.setCentralWidget(central_widget)
         self.output_to_plain_text_circle()
         self.show()
 
     def show_window_settings(self):
         print('show окна настроек')
-        self.two_window = SettingsWindow(self)
+        self.two_window = SettingsWindow(self, parent=None)
+        self.two_window.logout.connect(self.__log_out)
         self.two_window.show()
 
     def not_authorized_app(self):
@@ -498,6 +500,11 @@ class MainWindow(QMainWindow):
         print('Удаление пароля из конфигурации')
         self.conf.set_password('')
         self.timerHide.stop()
+
+        self.setPalette()
+        self.setMask()
+
+        self.window_show()
 
     def window_show(self):
         self.show()

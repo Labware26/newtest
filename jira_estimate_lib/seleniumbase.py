@@ -9,7 +9,7 @@ from typing import List
 class Seleniumbase:
     def __init__(self, driver):
         self.driver = driver
-        self.__wait = WebDriverWait(self.driver, 15, 0.3)
+        self.__wait = WebDriverWait(self.driver, 10, 0.3)
 
     def __get_selenium_by(self, find_by: str):  # find_by -  что найти?
         find_by = find_by.lower()  # переводим значение в нижний регистр

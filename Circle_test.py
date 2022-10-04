@@ -15,7 +15,7 @@ class SettingsWindow(QtWidgets.QWidget):
 
     def close_window(self):
         self.close()
-        self.main_window1.lable_est.setText(str(random.randint(1, 100)))
+        self.main_window1.label_est.setText(str(random.randint(1, 100)))
         # self.main_window1.lable_name.setText('fdff')
 
 
@@ -26,7 +26,7 @@ class MainCircleWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Создание окна произвольной формы")
         self.resize(230, 230)
         self.move(1680, 40)
-        pixmap = QtGui.QPixmap("fon.png")
+        pixmap = QtGui.QPixmap("gfx/fon.png")
         pal = self.palette()
         pal.setBrush(QtGui.QPalette.Normal, QtGui.QPalette.Window, QtGui.QBrush(pixmap))
         pal.setBrush(QtGui.QPalette.Inactive, QtGui.QPalette.Window, QtGui.QBrush(pixmap))
@@ -37,7 +37,7 @@ class MainCircleWindow(QtWidgets.QMainWindow):
         self.button1.setFixedSize(38, 30)
         self.button1.move(54, 162)
         self.button1.clicked.connect(QtWidgets.qApp.quit)
-        self.button1.setIcon(QtGui.QIcon('refresh.png'))
+        self.button1.setIcon(QtGui.QIcon('gfx/refresh.png'))
         self.button1.setIconSize(QtCore.QSize(24, 24))
         self.button1.setStyleSheet(
             'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
@@ -47,7 +47,7 @@ class MainCircleWindow(QtWidgets.QMainWindow):
         self.button2.setFixedSize(38, 30)
         self.button2.move(96, 162)
         self.button2.clicked.connect(self.window_settings)
-        self.button2.setIcon(QtGui.QIcon('while.png'))
+        self.button2.setIcon(QtGui.QIcon('gfx/while.png'))
         self.button2.setIconSize(QtCore.QSize(24, 24))
         self.button2.setStyleSheet(
             'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
@@ -57,7 +57,7 @@ class MainCircleWindow(QtWidgets.QMainWindow):
         self.button3.setFixedSize(38, 30)
         self.button3.move(138, 162)
         self.button3.clicked.connect(QtWidgets.qApp.quit)
-        self.button3.setIcon(QtGui.QIcon('Red-Close-Button.png'))
+        self.button3.setIcon(QtGui.QIcon('gfx/Red-Close-Button.png'))
         self.button3.setIconSize(QtCore.QSize(24, 24))
         self.button3.setStyleSheet(
             'background-color: qlineargradient(spread:pad, x1:1, y1:1, x2:1, y2:0, stop:0 rgba(153, 153, 153, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 15px;')
@@ -75,7 +75,7 @@ class MainCircleWindow(QtWidgets.QMainWindow):
 
         self.lable_att = QtWidgets.QLabel(self)
         self.lable_att.setFixedSize(27, 24)
-        pixmap1 = QtGui.QPixmap("attention.png")
+        pixmap1 = QtGui.QPixmap("gfx/attention.png")
         self.lable_att.setPixmap(pixmap1)
         self.lable_att.move(102, 195)
         self.lable_att.setToolTip('Обнаружены следующие ошибки:\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd\ndfd')

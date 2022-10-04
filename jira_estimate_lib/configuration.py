@@ -22,8 +22,7 @@ class FileIsNotCorrectError(Exception):
 class Configuration:
     def __init__(self):
         default_configuration = {'url_server_jira': 'http://192.168.100.230:8080/', 'login': '', 'password': '',
-                                 'launch_mode': 'noprint', 'date_start': '', 'date_end': '', 'timeout_hide': 10000,
-                                 'point_size': 11, 'bold': False, 'interface': 'circle'}
+                                 'launch_mode': 'noprint', 'date_start': '', 'date_end': '', 'timeout_hide': 10000}
         try:
             with open('config.json', 'r', encoding='utf-8') as f_conf:  # Вычитываем конфигурацию из файла
                 self.configuration = json.load(f_conf)
@@ -49,6 +48,9 @@ class Configuration:
 
     def get_password(self):
         return self.configuration['password']
+
+    def getUrlLoginPassword(self):
+        return self.configuration['url_server_jira'], self.configuration['login'], self.configuration['password']
 
     def get_timeout_hide(self):
         return self.configuration['timeout_hide']
@@ -76,12 +78,16 @@ class Configuration:
         self.save_configuration()
 
     def set_login(self, login):
-        self.configuration['login'] = self.shifr(login)
+        encrypted_login = self.shifr(login)
+        self.configuration['login'] = encrypted_login
         self.save_configuration()
+        self.configuration['login'] = login
 
     def set_password(self, password):
-        self.configuration['password'] = self.shifr(password)
+        encrypted_password = self.shifr(password)
+        self.configuration['password'] = encrypted_password
         self.save_configuration()
+        self.configuration['password'] = password
 
     def set_launch_mode(self, launch_mode):
         self.configuration['launch_mode'] = launch_mode
@@ -89,9 +95,13 @@ class Configuration:
 
     def set_url_login_password(self, url_server_jira, login, password):
         self.configuration['url_server_jira'] = url_server_jira
-        self.configuration['login'] = self.shifr(login)
-        self.configuration['password'] = self.shifr(password)
+        encrypted_login = self.shifr(login)
+        encrypted_password = self.shifr(password)
+        self.configuration['login'] = encrypted_login
+        self.configuration['password'] = encrypted_password
         self.save_configuration()
+        self.configuration['login'] = login
+        self.configuration['password'] = password
 
     def set_interface(self, interface):
         self.configuration['interface'] = interface
